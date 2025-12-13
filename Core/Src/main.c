@@ -126,7 +126,7 @@ void PCA9685_init(uint16_t freq){
  * Each LED (servo) has 4 bytes for PWM
  * ON_L, ON_H, OFF_L, OFF_H
  * Masking and shifting on_time and off_time into respective locations in array
- * on_time will always be 0, so period always begins with low pulse
+ * on_time will always be 0, so period always begins with high pulse
  * MODE1 bit 5 (AI) allows for contiguous memory writing
  * */
 void PCA9685_set_pwm(uint8_t servo, uint16_t on_time, uint16_t off_time){
