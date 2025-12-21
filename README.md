@@ -2,6 +2,38 @@
 
 ## _Devlog_
 
+### _12/20/2025_:
+The design portion of the project is almost done. I spent a lot of time on Fusion designing and modeling parts, and I was finally able to assemble a working robotic arm today. I used [this](https://www.youtube.com/watch?v=MkABKJTZjVg "Arm reference video") video as a visual reference for the general structure and assembly for my arm, though I included a fifth servo at the tip of the forearm to control the claw angle. I modeled up a claw in Fusion using [this](https://www.youtube.com/watch?v=ZmckF8zYbp0&t=2116s "Fusion claw tutorial") tutorial and modified part of it to fit my arm. All STLs are now included in this repository. The potentiometer and breadboard in the image below are only there for debugging reasons, they won't be there in the final build.
+
+<img src="./Documentation/Pictures/Dec_20_Fully_Assembled.jpg"
+     alt="December 20th Fully Assembled"
+     style="width:75%; height:auto%;">
+
+There are five servos: 
+* MG996R base servo (provides rotation)
+* MG996R lid servo (connects to the arm)
+* 2 MG90 forearm servos (one connects to arm, other to control the angle of the claw)
+* MG90 claw servo (controls claw mechanism)
+
+Next, I will disassemble the five main pieces of the arm (base, lid, arm, forearm, claw) and individually center each servo at 90 degrees, so there is equal amount of movement on either side available from the centered position. After that, I'll connect extension jumper cables to each MG90 servo (the base and lid servo's wires can reach the PCA9685 no problem) and label each end to their respective servo's funcion. I'll also make an attempt to hide the servo wires as best I can; I included some cable holes in the design but I'm not sure whether they'll actually be all that helpful. After that, I have three more tasks to tackle:
+* Build enclosure for electronics (breadboard power supply circuit, MCU, PCA9685)
+* Start programming an inverse kinematics driver
+* Start designing a smaller, potentiometer driven controller arm (alternative would be to put five potentiometers in the electronics enclosure to control each servo individually)
+
+Below are some pictures of the design process from this past week:
+
+December 17: Working base and lid
+<img src="./Documentation/Pictures/Dec_17_Lid.jpg"
+     alt="December 17th Lid"
+     style="width:75%; height:auto%;">
+
+December 18: Arm assembled
+
+<img src="./Documentation/Pictures/Dec_18_Arm.jpg"
+     alt="December 18th Arm"
+     style="width:75%; height:auto%;">
+  
+
 ### _12/10/2025_:
 Just finished a working early version of the PCA9685 driver. Using STM's I2C HAL interface to read/write, doing PWM calculations, and getting a servo to oscillate. Got some help online on how to do this, namely from [here](https://www.micropeta.com/video113 "Helpful link") and a number of YouTube videos. Thoroughly annotated the code so its mechanisms are clear and easy to understand. I think at this point I'm ready to start the dreaded design section of this project, but I'm at a crossroads. I saw a really cool [video](https://www.youtube.com/watch?v=5toNqaGsGYs "Helpful link") where a smaller robotic arm "controller" was made with potentiometers, which then controlled the positions of the main robot's servos. I thought this idea was so cool and I really want to give it a shot, so I think my next goal will be to continue to procrastinate the Fusion section of this project and to write a simple ADC interface to control the position of just one servo with one potentiometer. I was also thinking about having multiple "modes" for the arm, where it is controlled by the little controller arm in one mode and maybe controlled with some kind of inverse kinematics algorithm in another mode, but as of today I really have no idea how that could work. I want this project to be a little more software heavy than my last two, so I might spend more time looking into this inverse kinematics idea.
 
