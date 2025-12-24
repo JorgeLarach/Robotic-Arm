@@ -18,11 +18,11 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include <stdio.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdio.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,7 +48,13 @@ I2C_HandleTypeDef hi2c1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
+typedef enum {
+	BASE = 0,
+	LID = 1,
+	FOREARM_1 = 2,
+	FOREARM_2 = 3,
+	CLAW = 4
+}; ServoID;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -150,6 +156,30 @@ void PCA9685_set_servo_angle(uint8_t servo, float angle){
 	PCA9685_set_pwm(servo, 0, (uint16_t)val);
 }
 
+uint8_t read_and_transmit_pot(char* message){
+	uint8_t angle = 0;
+	uint32_t pot_val = 0;
+
+	if(HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK){
+		pot_val = HAL_ADC_GetValue(&hadc1); // Polling for potentiometer ADC (testing/assembly purposes)
+	}
+
+    angle = (pot_val * 180) / 4095; // Map pot value (12 bits) to angle
+	if (angle > 180) angle = 180;
+
+		  // Transmitting to UART for debugging
+	sprintf(message,
+		    "Potentiometer Val: %lu Angle: %u\r\n",
+		     pot_val,
+		     angle);
+
+    HAL_UART_Transmit(&huart2,
+		              (uint8_t*)message,
+		              strlen(message),
+		              100);
+    return angle;
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -190,17 +220,24 @@ int main(void)
   uint32_t pot_val = 0;
   uint8_t angle = 0;
   char message[40] = {'\0'};
+  HAL_ADC_Start(&hadc1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  PCA9685_set_servo_angle(BASE, 90);
+  PCA9685_set_servo_angle(LID, 45);
+  PCA9685_set_servo_angle(FOREARM_1, 45);
+  PCA9685_set_servo_angle(FOREARM_2, 0);
+  PCA9685_set_servo_angle(CLAW, 0);
+
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  HAL_ADC_Start(&hadc1);
-	  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET); // To visually see update frequency
+
+	  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5); // To visually see update frequency
 
 	  if(HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK){
 		  pot_val = HAL_ADC_GetValue(&hadc1); // Polling for potentiometer ADC (testing/assembly purposes)
@@ -209,21 +246,20 @@ int main(void)
 	  angle = (pot_val * 180) / 4095; // Map pot value (12 bits) to angle
 	  if (angle > 180) angle = 180;
 
-	  // Transmitting to UART for debugging
+			  // Transmitting to UART for debugging
 	  sprintf(message,
-	          "Potentiometer Val: %lu Angle: %u\r\n",
-			  pot_val,
-	          angle);
+			  "Potentiometer Val: %lu Angle: %u\r\n",
+			   pot_val,
+			   angle);
 
 	  HAL_UART_Transmit(&huart2,
-	                    (uint8_t*)message,
-	                    strlen(message),
-	                    100);
+			            (uint8_t*)message,
+			            strlen(message),
+			            100);
 
-	  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+//	  angle = read_and_transmit_pot(message);
+	  PCA9685_set_servo_angle(CLAW, angle);
 
-	  PCA9685_set_servo_angle(1, angle);
-	  HAL_ADC_Stop(&hadc1); // Don't need this here
 	  HAL_Delay(100);
 
   }
@@ -299,15 +335,15 @@ static void MX_ADC1_Init(void)
   hadc1.Instance = ADC1;
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc1.Init.ScanConvMode = DISABLE;
-  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.ScanConvMode = ENABLE;
+  hadc1.Init.ContinuousConvMode = ENABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.NbrOfConversion = 1;
   hadc1.Init.DMAContinuousRequests = DISABLE;
-  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  hadc1.Init.EOCSelection = ADC_EOC_SEQ_CONV;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
     Error_Handler();
