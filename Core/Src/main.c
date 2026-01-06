@@ -51,17 +51,6 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 
 #define NUM_OF_SERVOS 5
-#define BASE      0
-#define LID       1
-#define FOREARM_1 2
-#define FOREARM_2 3
-#define CLAW      4
-
-uint16_t pot1 = 0;
-uint16_t pot2 = 0;
-uint16_t pot3 = 0;
-uint16_t pot4 = 0;
-uint16_t pot5 = 0;
 
 const uint8_t adc_index[NUM_OF_SERVOS] = { 0, 2, 4, 6, 8 };
 uint16_t ADC_buffer[NUM_OF_SERVOS * 2];
@@ -172,12 +161,17 @@ void PCA9685_set_servo_angle(uint8_t servo, float angle){
 	PCA9685_set_pwm(servo, 0, (uint16_t)val);
 }
 
+/* @brief for converting ADC values
+ * Converts 12-bit ADC value into an angle value (0-180) */
 uint8_t ADC_to_angle(uint16_t potentiometer){
 	uint8_t angle = (potentiometer * 180)/4095;
 	if(angle > 180) angle = 180;
 	return angle;
 }
 
+/* @brief for updating servos
+ * Loops through continuous DMA-written ADC buffer (with offset indices)
+ * and converts values to angles, then updates corresponding servo angle */
 void update_servos(void){
 	for (uint8_t i = 0; i < NUM_OF_SERVOS; i++) {
 		uint16_t pot = ADC_buffer[adc_index[i]];
@@ -230,8 +224,6 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-
-  HAL_Delay(2000);
 
   while (1)
   {
