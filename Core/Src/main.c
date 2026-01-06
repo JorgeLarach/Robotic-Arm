@@ -42,24 +42,39 @@
 
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
+DMA_HandleTypeDef hdma_adc1;
 
 I2C_HandleTypeDef hi2c1;
 
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-typedef enum {
-	BASE = 0,
-	LID = 1,
-	FOREARM_1 = 2,
-	FOREARM_2 = 3,
-	CLAW = 4
-}; ServoID;
+
+#define NUM_OF_SERVOS 5
+#define BASE      0
+#define LID       1
+#define FOREARM_1 2
+#define FOREARM_2 3
+#define CLAW      4
+
+uint16_t pot1 = 0;
+uint16_t pot2 = 0;
+uint16_t pot3 = 0;
+uint16_t pot4 = 0;
+uint16_t pot5 = 0;
+
+const uint8_t adc_index[NUM_OF_SERVOS] = { 0, 2, 4, 6, 8 };
+uint16_t ADC_buffer[NUM_OF_SERVOS * 2];
+uint8_t servo_angles[NUM_OF_SERVOS];
+
+char message[40] = {'\0'};
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_ADC1_Init(void);
@@ -69,6 +84,7 @@ void PCA9685_set_pwm_freq(uint16_t freq);
 void PCA9685_init(uint16_t freq);
 void PCA9685_set_pwm(uint8_t servo, uint16_t on_time, uint16_t off_time);
 void PCA9685_set_servo_angle(uint8_t servo, float angle);
+void update_servos(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -156,28 +172,18 @@ void PCA9685_set_servo_angle(uint8_t servo, float angle){
 	PCA9685_set_pwm(servo, 0, (uint16_t)val);
 }
 
-uint8_t read_and_transmit_pot(char* message){
-	uint8_t angle = 0;
-	uint32_t pot_val = 0;
+uint8_t ADC_to_angle(uint16_t potentiometer){
+	uint8_t angle = (potentiometer * 180)/4095;
+	if(angle > 180) angle = 180;
+	return angle;
+}
 
-	if(HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK){
-		pot_val = HAL_ADC_GetValue(&hadc1); // Polling for potentiometer ADC (testing/assembly purposes)
+void update_servos(void){
+	for (uint8_t i = 0; i < NUM_OF_SERVOS; i++) {
+		uint16_t pot = ADC_buffer[adc_index[i]];
+	    servo_angles[i] = ADC_to_angle(pot);
+	    PCA9685_set_servo_angle(i, servo_angles[i]);
 	}
-
-    angle = (pot_val * 180) / 4095; // Map pot value (12 bits) to angle
-	if (angle > 180) angle = 180;
-
-		  // Transmitting to UART for debugging
-	sprintf(message,
-		    "Potentiometer Val: %lu Angle: %u\r\n",
-		     pot_val,
-		     angle);
-
-    HAL_UART_Transmit(&huart2,
-		              (uint8_t*)message,
-		              strlen(message),
-		              100);
-    return angle;
 }
 
 /* USER CODE END 0 */
@@ -211,57 +217,29 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART2_UART_Init();
   MX_I2C1_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
-  PCA9685_init(50); // Servos require 50hz frequency
 
-  uint32_t pot_val = 0;
-  uint8_t angle = 0;
-  char message[40] = {'\0'};
-  HAL_ADC_Start(&hadc1);
+  PCA9685_init(50); // Servos require 50hz frequency
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)ADC_buffer, NUM_OF_SERVOS);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  PCA9685_set_servo_angle(BASE, 90);
-  PCA9685_set_servo_angle(LID, 45);
-  PCA9685_set_servo_angle(FOREARM_1, 45);
-  PCA9685_set_servo_angle(FOREARM_2, 0);
-  PCA9685_set_servo_angle(CLAW, 0);
+
+  HAL_Delay(2000);
 
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-
-	  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5); // To visually see update frequency
-
-	  if(HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK){
-		  pot_val = HAL_ADC_GetValue(&hadc1); // Polling for potentiometer ADC (testing/assembly purposes)
-	  }
-
-	  angle = (pot_val * 180) / 4095; // Map pot value (12 bits) to angle
-	  if (angle > 180) angle = 180;
-
-			  // Transmitting to UART for debugging
-	  sprintf(message,
-			  "Potentiometer Val: %lu Angle: %u\r\n",
-			   pot_val,
-			   angle);
-
-	  HAL_UART_Transmit(&huart2,
-			            (uint8_t*)message,
-			            strlen(message),
-			            100);
-
-//	  angle = read_and_transmit_pot(message);
-	  PCA9685_set_servo_angle(CLAW, angle);
-
+	  update_servos();
 	  HAL_Delay(100);
-
   }
   /* USER CODE END 3 */
 }
@@ -341,8 +319,8 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.NbrOfConversion = 1;
-  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.NbrOfConversion = 5;
+  hadc1.Init.DMAContinuousRequests = ENABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SEQ_CONV;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
@@ -353,7 +331,43 @@ static void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_0;
   sConfig.Rank = 1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_1;
+  sConfig.Rank = 2;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_4;
+  sConfig.Rank = 3;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_8;
+  sConfig.Rank = 4;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_11;
+  sConfig.Rank = 5;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -432,6 +446,22 @@ static void MX_USART2_UART_Init(void)
 }
 
 /**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA2_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA2_Stream0_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -471,6 +501,7 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
 
 /* USER CODE END 4 */
 
