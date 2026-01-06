@@ -1,7 +1,28 @@
 # Robot Arm
+Welcome to the readme and devlog for my Robot Arm project! This was about a month long project, done entirely in December 2025. Here you will find the code, pictures, and all the documentation you might need for this personal project. It is a 4-axis robotic arm with a gripper, controlled by an STM32 Nucleo-F401RE microcontroller, a PCA9685 servo driver, and a breadboard power supply module I had laying around. You can find a video of this thing working in the Documentation/Pictures folder. Though I'm leaving this project for now, I do plan on coming back and implementing inverse kinematics control. If you have any questions or need to get in touch, feel free to contact me at jorgelarachesp@gmail.com.
 
+<img src="./Documentation/Pictures/Dec_30_Best_Picture.jpg"
+     alt="December 30th best picture"
+     style="width:75%; height:auto%;">
 ## _Devlog_
+### _1/6/2026_:
+After I finished the design portion of the robot, I had to come up with a layout and design of the electronics box. I sketched it out on paper, and my original idea was for it to contain:
+* the power supply module,
+* the STM32 MCU,
+* a solder breadboard to supply voltage to the potentiometers, and
+* the PCA9685 module.
 
+It wasn't until I modeled it up and printed it that I realized the potentiometers didn't need the breadboard to supply 3.3V and GND to each one, I could just connect the first one to the last 3.3V output on the power supply and daisy chain jumper wires to each subsequent one. I prototyped it out on a solderless breadboard and it worked, so I got to soldering. It was never my strong suit, and I did make a few janky connections that snapped off and had to solder back on later, but it worked! I attached each potentiometer to the lid with some provided nuts and connected their signal wires to the ADC pins on the Nucleo. Unfortunately, this means that you can't remove the lid without disconnecting the signal wires, but I don't mind, since I know exactly where they go. Also there's a big empty space in the box where the solder breadboard would have gone but that's ok. I will admit I made some pretty heinous mistakes with the electronics box design, but its nothing some filing and cutting couldn't fix. 
+
+<img src="./Documentation/Pictures/Dec_23_WIP_Box.jpg"
+     alt="December 23rd WIP electronics box"
+     style="width:75%; height:auto%;">
+
+<img src="./Documentation/Pictures/Dec_26_Pots_Lid.jpg"
+     alt="December 26th pots on lid"
+     style="width:75%; height:auto%;">
+
+Another big challenge I faced AFTER designing and making the robot was handling multichannel ADC. This completely blindsided me, as I was operating under the understanding that, if it works and its easy with one potentiometer, it'll be easy with more than one. I was dead wrong. This was a much deeper rabbit hole than I ever expected. I'll spare you the gory details, but I ended up using continuously converted DMA accessed ADC values to an ADC array. You can check out the MX_ADC1_Init function in main.c to see more. Once I had that working, I was done with the project on December 30th!
 ### _12/20/2025_:
 The design portion of the project is almost done. I spent a lot of time on Fusion designing and modeling parts, and I was finally able to assemble a working robotic arm today. I used [this](https://www.youtube.com/watch?v=MkABKJTZjVg "Arm reference video") video as a visual reference for the general structure and assembly for my arm, though I included a fifth servo at the tip of the forearm to control the claw angle. I modeled up a claw in Fusion using [this](https://www.youtube.com/watch?v=ZmckF8zYbp0&t=2116s "Fusion claw tutorial") tutorial and modified part of it to fit my arm. All STLs are now included in this repository. The potentiometer and breadboard in the image below are only there for debugging reasons, they won't be there in the final build.
 
